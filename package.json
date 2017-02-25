@@ -1,0 +1,23 @@
+{
+  "name": "nos-epg",
+  "version": "1.0.0",
+  "description": "NOS EPG",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/suskind/nos-epg.git"
+  },
+  "author": "Claudio Gamboa",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/suskind/nos-epg/issues"
+  },
+  "homepage": "https://github.com/suskind/nos-epg#readme",
+  "dependencies": {
+    "jsdom": "^9.11.0",
+    "moment": "^2.17.1"
+  }
+}
