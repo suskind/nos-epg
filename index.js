@@ -75,15 +75,19 @@ const formatData = (err, data, numDays, callBack) => {
             aChannels.push(channel);
         });
 
-        saveCache(numDays, JSON.stringify(aChannels, null, 2));
+        defaultOptions.cacheSet(getCacheId(numDays), JSON.stringify(aChannels, null, 2), callBack);
 
-        callBack(null, aChannels);
+        
     });
 };
 
-const cacheId = (numDays) => {
+const getCacheId = (numDays) => {
     const curDate = moment().format('YYYY-MM-DD');
-    const fileName = curDate + '_' + numDays + '.json';
+    return curDate + '_' + numDays;
+};
+
+const cachePath = (cacheId) => {
+    const fileName = cacheId + '.json';
 
     const filePath = path.join(__dirname, 'cache', fileName);
 
@@ -91,38 +95,64 @@ const cacheId = (numDays) => {
 };
 
 
-const getCache = (numDays) => {
-    const cacheFilePath = cacheId(numDays);
+const getCache = (cacheId, callBack, runWhenNoCache) => {
+    const cacheFilePath = cachePath(cacheId);
 
     try {
         const stats = fs.statSync(cacheFilePath);
         
-        return fs.readFileSync(cacheFilePath, 'utf8');
+        fs.readFile(cacheFilePath, 'utf8', (err, data) => {
+            if (err) {
+                console.log('ERROR on read cache data');
+                callBack(err);
+                return;
+            }
+            callBack(null, JSON.parse(data));
+        });
     } catch (e) {
-        return null;
+        runWhenNoCache(cacheId, callBack);
     }
 }
 
-const saveCache = (numDays, data) => {
-    const cacheFilePath = cacheId(numDays);
-    try {
-        fs.writeFileSync(cacheFilePath, data, 'utf8');
-        return true;
-    } catch (e) {
-        return false;
-    }
+const saveCache = (cacheId, data, callBack) => {
+    const cacheFilePath = cachePath(cacheId);
+
+    fs.writeFile(cacheFilePath, data, 'utf8', (err) => {
+        if (err) {
+            console.log('Error on save cache');
+            callBack(err);
+            return;
+        }
+        callBack(null, JSON.parse(data)); 
+    });
 };
 
-const getData = (numDays, callBack, callBackForNoCache) => {
+const defaultCacheType = 'fs';
 
-    const cacheData = getCache(numDays);
-    if (cacheData !== null) {
-        const aChannels = JSON.parse(cacheData);
-        callBack(null, aChannels);
-    } else {
+let defaultOptions = {
+    cacheType: defaultCacheType,
+    cacheGet: getCache,
+    cacheSet: saveCache
+};
 
-        callBackForNoCache();
+const getData = (numDays, callBack, callBackForNoCache, options) => {
 
+    defaultOptions = Object.assign(defaultOptions, options);
+
+    const cacheId = getCacheId(numDays);
+
+    defaultOptions.cacheGet(cacheId, (err, data) => {
+        if (err) {
+            console.log('Error on getCache nos-epg');
+            callBack(err);
+            return;
+        }
+        callBack(null, data);
+    }, (cacheId, callBack) => {
+        if (typeof(callBackForNoCache) === 'function') {
+            callBackForNoCache();
+        }
+        // callBack()
         // 
         // curl -X POST 'http://www.nos.pt/_layouts/15/Armstrong/ApplicationPages/EPGGetProgramsAndDetails.aspx/GetProgramsForChannels' -d "{'channelStartIndex':'1','day':'0','order':'grelha','category':'','numChannels':'1'}" -H 'X-Requested-With: XMLHttpRequest' -H 'Content-type: application/json'
         //
@@ -136,7 +166,7 @@ const getData = (numDays, callBack, callBackForNoCache) => {
             json: {'channelStartIndex':'0','day':numDays+'','order':'grelha','category':'','numChannels':'250'}
         };
 
-        request(options, function(err, response, body) {
+        request(options, (err, response, body) => {
             if (err) {
                 callBack(err);
                 return;
@@ -147,7 +177,9 @@ const getData = (numDays, callBack, callBackForNoCache) => {
                 formatData(null, oBody.d, numDays, callBack);
             }
         });
-    }
+
+    });
+
 };
 
 module.exports = getData;
