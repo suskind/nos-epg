@@ -27,6 +27,62 @@ const findChannel = (code) => {
 };
 
 const formatData = (err, data, numDays, callBack) => {
+
+
+    jsdom.env(data, ['http://code.jquery.com/jquery.js'], (err, window) => {
+        if (err) {
+            console.log('Error');
+            return;
+        }
+        const aChannels = [];
+        window.document.querySelectorAll('.channel').forEach((chan, idx) => {
+            const channelInfo = findChannel(chan.id);
+
+            const channel = {
+                id: chan.id,
+                position: (channelInfo) ? channelInfo.num : null,
+                name: (channelInfo) ? channelInfo.name : null,
+                programs: []
+            };
+            chan.querySelectorAll('li.programClass').forEach((item, idx2) => {
+
+                const program = item.querySelector('a[title]').getAttribute('title');
+                const aHour = item.querySelector('span.duration').textContent.split(' - ');
+                let startTS = Number(moment(aHour[0], 'HH:mm').format('x'));
+                let endTS = Number(moment(aHour[1], 'HH:mm').format('x'));
+
+                const diffStart = endTS - startTS;
+                if (diffStart < 0) {
+                    startTS = startTS - (60 * 60 * 24 * 1000);
+                }
+                const diffEnd = endTS - startTS;
+
+                if (diffEnd < 0) {
+                    endTS = endTS + (60 * 60 * 24 * 1000);
+                }
+
+                startTS = startTS + ((60 * 60 * 24 * 1000) * numDays);
+                endTS = endTS + ((60 * 60 * 24 * 1000) * numDays);
+
+                channel.programs.push({
+                    name: program,
+                    startStr: aHour[0],
+                    start: moment(startTS).format('YYYY-MM-DD HH:mm'),
+                    startTS: startTS, 
+                    endStr: aHour[1],
+                    end: moment(endTS).format('YYYY-MM-DD HH:mm'),
+                    endTS: endTS
+                });                
+            });
+            aChannels.push(channel);
+        });
+
+        callBack(null, aChannels);
+    });
+
+
+    return;
+
     jsdom.env(data, ['http://code.jquery.com/jquery.js'], (err, window) => {
         if (err) {
             console.log('Error');
@@ -136,6 +192,43 @@ let defaultOptions = {
 };
 
 const getData = (numDays, callBack, callBackForNoCache, options) => {
+
+
+    // test with no cache
+
+    if (typeof(callBackForNoCache) === 'function') {
+        callBackForNoCache();
+    }
+
+    var options = {
+        uri: apiURL,
+        method: 'POST',
+        headers: {
+            'Content-type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        json: {'channelStartIndex':'0','day':numDays+'','order':'grelha','category':'','numChannels':'250'}
+    };
+
+    request(options, (err, response, body) => {
+        if (err) {
+            callBack(err);
+            return;
+        }
+        if (response.statusCode == 200) {
+            const oBody = body;
+
+            formatData(null, oBody.d, numDays, callBack);
+        }
+    });
+
+
+
+
+    return;
+
+
+
 
     defaultOptions = Object.assign(defaultOptions, options);
 
